@@ -4,9 +4,7 @@ from libcpp.vector cimport vector
 import numpy as np
 
 cdef extern from "trekker.h":
-
-    bint isInitialized();
-    
+   
     cdef cppclass Trekker:
         
         Trekker(string) except +
