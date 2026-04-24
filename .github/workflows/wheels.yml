@@ -6,150 +6,190 @@ jobs:
   build_wheels:
     name: Build wheel for cp${{ matrix.python }}-${{ matrix.platform_id }}
     runs-on: ${{ matrix.os }}
+
     strategy:
       fail-fast: false
       matrix:
         include:
+
           # Windows 64-bit
           - os: windows-latest
             python: 38
             platform_id: win_amd64
+
           - os: windows-latest
             python: 39
             platform_id: win_amd64
+
           - os: windows-latest
             python: 310
             platform_id: win_amd64
+
           - os: windows-latest
             python: 311
             platform_id: win_amd64
+
           - os: windows-latest
             python: 312
             platform_id: win_amd64
+
 
           # Linux 64-bit
           - os: ubuntu-latest
             python: 38
             platform_id: manylinux_x86_64
+
           - os: ubuntu-latest
             python: 39
             platform_id: manylinux_x86_64
+
           - os: ubuntu-latest
             python: 310
             platform_id: manylinux_x86_64
+
           - os: ubuntu-latest
             python: 311
             platform_id: manylinux_x86_64
+
           - os: ubuntu-latest
             python: 312
             platform_id: manylinux_x86_64
 
-          # macOS on Intel 64-bit
+
+          # macOS Intel
           - os: macos-latest
             python: 38
             arch: x86_64
             platform_id: macosx_x86_64
+
           - os: macos-latest
             python: 39
             arch: x86_64
             platform_id: macosx_x86_64
+
           - os: macos-latest
             python: 310
             arch: x86_64
             platform_id: macosx_x86_64
+
           - os: macos-latest
             python: 311
             arch: x86_64
             platform_id: macosx_x86_64
+
           - os: macos-latest
             python: 312
             arch: x86_64
             platform_id: macosx_x86_64
 
-          # macOS on Apple M1 64-bit
+
+          # macOS Apple Silicon
           - os: macos-latest
             python: 38
             arch: arm64
             platform_id: macosx_arm64
+
           - os: macos-latest
             python: 39
             arch: arm64
             platform_id: macosx_arm64
+
           - os: macos-latest
             python: 310
             arch: arm64
             platform_id: macosx_arm64
+
           - os: macos-latest
             python: 311
             arch: arm64
             platform_id: macosx_arm64
+
           - os: macos-latest
             python: 312
             arch: arm64
             platform_id: macosx_arm64
+
 
     steps:
-      - uses: actions/checkout@v3
+
+      - uses: actions/checkout@v4
         with:
           submodules: true
 
-      - uses: actions/setup-python@v4
-        name: Install Python host for cibuildwheel
-        with:
-          python-version: '3.12'
 
-        # Visual Studio
+      - name: Install Python host for cibuildwheel
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+
+      # Windows MSVC setup
       - name: Set up MSVC x64
         if: matrix.platform_id == 'win_amd64'
         uses: ilammy/msvc-dev-cmd@v1
 
-      - name: Installing Nasm win_amd64
+
+      # NASM install (Windows)
+      - name: Installing NASM win_amd64
         if: matrix.platform_id == 'win_amd64'
-        run: |
-          choco install --no-progress -y nasm
+        run: choco install --no-progress -y nasm
 
-      - name: Installing Nasm win32
+
+      - name: Installing NASM win32
         if: matrix.platform_id == 'win32'
-        run: |
-          choco install --no-progress -y --x86 nasm
+        run: choco install --no-progress -y --x86 nasm
 
-      - name: Set Path win32
+
+      - name: Add NASM to PATH (win32)
         if: matrix.platform_id == 'win32'
         shell: bash
-        run: |
-          echo "C:\Program Files (x86)\NASM" >> $GITHUB_PATH
+        run: echo "C:\\Program Files (x86)\\NASM" >> $GITHUB_PATH
 
-      - name: Set Path win_amd64
+
+      - name: Add NASM to PATH (win_amd64)
         if: matrix.platform_id == 'win_amd64'
         shell: bash
-        run: |
-          echo "C:\Program Files\NASM" >> $GITHUB_PATH
+        run: echo "C:\\Program Files\\NASM" >> $GITHUB_PATH
+
 
       - name: Install cibuildwheel
-        run: python -m pip install cibuildwheel==2.11.4
+        run: python -m pip install cibuildwheel
+
 
       - name: Build wheels
-        # to supply options, put them in 'env', like:
         env:
+
+          # Linux images
           CIBW_MANYLINUX_X86_64_IMAGE: manylinux2014
           CIBW_MANYLINUX_I686_IMAGE: manylinux2014
           CIBW_MANYLINUX_AARCH64_IMAGE: manylinux2014
+
+          # Target build selector
           CIBW_BUILD: cp${{ matrix.python }}-${{ matrix.platform_id }}
+
+          # Linux architectures
           CIBW_ARCHS_LINUX: auto aarch64
 
+          # macOS architecture selection
           CIBW_ARCHS_MACOS: ${{ matrix.arch }}
+
           CIBW_ENVIRONMENT_MACOS: >
             CMAKE_OSX_ARCHITECTURES=${{ matrix.arch }}
 
+          # Test import after build
           CIBW_TEST_COMMAND: python -c "import Trekker"
 
-          # Include latest Python beta
+          # Allow prerelease Python builds
           CIBW_PRERELEASE_PYTHONS: True
 
+          # Pre-build dependencies
           CIBW_BEFORE_BUILD: pip install cython wheel
 
         run: python -m cibuildwheel --output-dir wheelhouse src/python/
 
-      - uses: actions/upload-artifact@v2
+
+      - name: Upload wheels
+        uses: actions/upload-artifact@v4
         with:
+          name: wheels-${{ matrix.python }}-${{ matrix.platform_id }}
           path: ./wheelhouse/*.whl
