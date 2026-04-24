@@ -182,9 +182,6 @@ jobs:
           # Allow prerelease Python builds
           CIBW_PRERELEASE_PYTHONS: True
 
-          # Pre-build dependencies
-          CIBW_BEFORE_BUILD: pip install cython wheel
-
         run: python -m cibuildwheel --output-dir wheelhouse src/python/
 
 
